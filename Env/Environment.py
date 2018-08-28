@@ -9,15 +9,19 @@ import numpy as np
 
 class Environment:
 
-    def __init__(self, taskCount=10, save = False):
+    def __init__(self, taskCount=10, save = False, alpha = 0.5, workflow=None):
         self.taskCount = taskCount
-        self.workflow  = Workflow(taskCount)
+        self.alpha = alpha
+        if workflow is None:
+            self.workflow  = Workflow(self.taskCount, self.alpha)
+        else:
+            self.workflow = copy.deepcopy(workflow)
+            self.workflow.calcDeadline(self.alpha)
         self.workflowbak = copy.deepcopy(self.workflow)
         self.runningTasks  = []
         self.finishedTasks = []
         self.currentTime = 0
         self.resourcePool = []
-        self.initVM()
         self.finishedSize = 0
         self.totalSize    = sum(self.workflow.taskSize)
         self.totalCost    = 0
@@ -37,19 +41,6 @@ class Environment:
             cost += vm.totalCost
         return cost
 
-    def initVM(self):
-        vm_large_1 = VM(speed=1.8, cost=2.5, type='large')
-        vm_large_2 = VM(speed=1.8, cost=2.5, type='large')
-        vm_large_3 = VM(speed=1.8, cost=2.5, type='large')
-
-        vm_medium_1 = VM(speed=1.4, cost=1.7, type='medium')
-        vm_medium_2 = VM(speed=1.4, cost=1.7, type='medium')
-        vm_medium_3 = VM(speed=1.4, cost=1.7, type='medium')
-
-        vm_small_1 = VM(speed=1, cost=1, type='small')
-        vm_small_2 = VM(speed=1, cost=1, type='small')
-        vm_small_3 = VM(speed=1, cost=1, type='small')
-
     def getFinishRate(self):
         return self.finishedSize / self.totalSize
 
@@ -64,27 +55,35 @@ class Environment:
                 toRemove.append(self.resourcePool[i])
         self.resourcePool = [e for e in self.resourcePool if e not in toRemove]
 
+    def spanTimeProcess(self):
+        min = 99999999
+        for i in range(len(self.resourcePool)):
+            if self.resourcePool[i].remainTime < min:
+                min = self.resourcePool[i].remainTime
+
+        if min == 99999999:
+            return
+
+        self.currentTime += min
+        toRemove = []
+        for i in range(len(self.resourcePool)):
+            finishSig, cost = self.resourcePool[i].spanTimeProcess(self, min)
+            self.totalCost += cost
+            if finishSig:
+                self.setTaskFinished(self.resourcePool[i].taskNo)
+                toRemove.append(self.resourcePool[i])
+        self.resourcePool = [e for e in self.resourcePool if e not in toRemove]
+
     def step(self, taskNo, vmType):
-        res, msg = self.scheduleTask(taskNo, vmType)
-        succ = False
-        reward = 0
-        if res == 1:          # No available task to schedule!
-            reward = 0
-        elif res == 2:        # hold for current task
-            reward = 0
-        elif res == 4:        # schedule succ
-            reward = 0
-            succ = True
-
-            # 正常步骤
-
-        reward = 0
-
+        self.scheduleTask(taskNo, vmType)
         self.timeProcess()
-        ob = self.getObservation()
-        done = False
+        done, reward = self.isDone()
+        return done, reward
 
-        # 超时未完成
+    def isDone(self):
+        done = False
+        reward = 0
+
         if self.currentTime >= self.workflow.DeadLine:
             # reward = -1
             reward = -0.01
@@ -92,41 +91,49 @@ class Environment:
 
         # 正常完成
         if len(self.finishedTasks) == self.workflow.taskCount:
-            fastFinishTime = self.workflow.CPTime / 1.8
+            fastFinishTime = self.workflow.CPTime / VM.xxlarge_speed
             finishTime = self.currentTime
             deadLine = self.workflow.DeadLine
-
             reward = (finishTime - fastFinishTime) / (deadLine - fastFinishTime)
             reward = reward * reward * reward
             done = True
-            #print(reward)
+        return done, reward
 
-        return ob, reward, done, succ
+    def isDone2(self):
+        done = False
+        reward = 0
 
-    def getObservation(self):
+
+        # 正常完成
+        if len(self.finishedTasks) == self.workflow.taskCount:
+            if self.currentTime >= self.workflow.DeadLine:
+                # reward = -1
+                reward = -0.01
+                done = True
+            else:
+                fastFinishTime = self.workflow.CPTime / VM.xxlarge_speed
+                finishTime = self.currentTime
+                deadLine = self.workflow.DeadLine
+                reward = (finishTime - fastFinishTime) / (deadLine - fastFinishTime)
+                reward = reward * reward * reward
+                done = True
+        return done, reward
+
+    def getObservation(self, vmPerm = 1):
         obs = []
         taskNo = self.getTaskToSchedule()
         tasksize = self.workflow.taskSize[taskNo]
-        obs.append(tasksize)
-        obs.append(tasksize / 1.4)
-        obs.append(tasksize / 1.8)
-        # ratio = tasksize / self.workflow.forwardCP[taskNo]
-        fastestFinishTime = (self.workflow.forwardCP[taskNo] - tasksize) / 1.4
+        obs.append(tasksize / VM.small_speed * vmPerm)
+        obs.append(tasksize / VM.medium_speed * vmPerm)
+        obs.append(tasksize / VM.large_speed * vmPerm)
+        obs.append(tasksize / VM.xlarge_speed * vmPerm)
+        obs.append(tasksize / VM.xxlarge_speed * vmPerm)
+
+        fastestFinishTime = self.workflow.forwardCP[taskNo] - (tasksize / VM.xxlarge_speed)
         decompositeDeadline = self.workflow.DeadLine - self.currentTime - fastestFinishTime
         obs.append(decompositeDeadline)
         obs = np.array(obs)
         return obs
-
-    def calcReward(self):
-       # if self.currentTime >= self.workflow.DeadLine:
-       #     reward = -80
-       # else:
-          # cost = self.getCurrentCost()
-          # costLow = self.totalSize
-          # costHigh = self.totalSize * 2.5
-          # reward = ( (cost - costLow) / (costHigh - costLow) ) - 1
-        reward = self.currentTime - self.workflow.DeadLine
-        return  reward
 
     def getTaskToSchedule(self):
         tasksToSchedule = self.getNewTasks()
@@ -144,38 +151,21 @@ class Environment:
         return tasksToSchedule
 
     def scheduleTask(self, taskNo, vmType):
-        if taskNo == -1:
-            return 1, 'No available task to schedule!'
-
-        if vmType == 0:
-            vm = VM(speed=1, cost=1, type='small')
-        if vmType == 1:
-            vm = VM(speed=1.4, cost=1.7, type='medium')
-        if vmType == 2:
-            vm = VM(speed=1.8, cost=2.5, type='large')
-        if vmType == 3:
-            return 2, 'hold for current task'
-
-        vm.assignTask(taskNo, self.workflow.taskSize[taskNo])
+        vm = VM(vmType)
+        vmPermformance = vm.assignTask(taskNo, self.workflow.taskSize[taskNo])
         self.resourcePool.append(vm)
         self.runningTasks.append(taskNo)
-        return 4, 'schedule task t_'+str(taskNo)+' to vm_'+str(vmType)
+        return vmPermformance
+
 
     def setTaskFinished(self, taskNo):
         self.workflow.markAsFinished(taskNo)
         self.runningTasks.remove(taskNo)
         self.finishedTasks.append(taskNo)
 
-    def isDone(self):
-        if self.currentTime >= self.workflow.DeadLine:
-            return True
-        if len(self.finishedTasks) == self.workflow.taskCount:
-            return True
-        return False
-
     def reset(self, newWorkflow = False):
         if newWorkflow:
-            self.workflow = Workflow(self.taskCount)
+            self.workflow = Workflow(self.taskCount, self.alpha)
             self.workflowbak = copy.deepcopy(self.workflow)
         else:
             self.workflow = copy.deepcopy(self.workflowbak)
@@ -184,10 +174,18 @@ class Environment:
         self.finishedTasks = []
         self.currentTime = 0
         self.resourcePool = []
-        self.initVM()
         self.finishedSize = 0
         self.totalSize = sum(self.workflow.taskSize)
         self.totalCost = 0
 
+    def reset2(self):
+        self.workflow = Workflow(taskCount=self.taskCount, alpha=self.alpha, DAG=self.workflowbak.DAG)
+        self.runningTasks = []
+        self.finishedTasks = []
+        self.currentTime = 0
+        self.resourcePool = []
+        self.finishedSize = 0
+        self.totalSize = sum(self.workflow.taskSize)
+        self.totalCost = 0
 
 

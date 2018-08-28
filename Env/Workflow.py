@@ -3,33 +3,43 @@
 
 import numpy as np
 import random
+from Env.VirtualMachine import VM
+import copy
 
 
 class Workflow:
 
-    def __init__(self, taskCount = 10):
+    def __init__(self, taskCount = 10, alpha = 0.5, DAG = None):
+        self.alpha = alpha
         self.taskCount = taskCount
-        self.DAG = np.zeros((taskCount, taskCount), dtype=int)
+        if DAG is None:
+            self.DAG = np.zeros((taskCount, taskCount), dtype=int)
+            self.randomGenerate()
+        else:
+            self.DAG = copy.deepcopy(DAG)
         self.taskSize = self.generateTaskSizeRandom()
-        self.randomGenerate()
-        self.CP = np.zeros(taskCount, dtype=int)
-        self.taskCP = np.zeros(taskCount, dtype=int)
-        self.forwardCP = np.zeros(taskCount, dtype=int)
-        # self.CPTime = self.getCP(self.taskCount-1)
-        self.CPTime = self.getForwardCP(0)
-        self.DeadLine = self.CPTime - (self.CPTime - self.CPTime / 1.8) * 0.5
+        self.taskTime = np.array(self.taskSize) / VM.xxlarge_speed
+
+        self.CP = np.zeros(taskCount, dtype=float)
+        # self.taskCP = np.zeros(taskCount, dtype=int)
+        self.forwardCP = np.zeros(taskCount, dtype=float)
+        self.CPTime = self.getCP(self.taskCount-1) # loose
+        self.getForwardCP(0)                       # tight
+        self.DeadLine = (self.CPTime / VM.xxlarge_speed) + (self.CPTime - self.CPTime / VM.xxlarge_speed) * alpha
         # self.DeadLine = self.CPTime * 1
 
-        self.taskCPs = []
-        for i in range(taskCount):
-            self.taskCPs.append([])
-        for i in range(taskCount-1):
-            next = self.taskCP[i]
-            self.taskCPs[i].append(next)
-            while next != taskCount-1:
-                next = self.taskCP[next]
-                self.taskCPs[i].append(next)
+        # self.taskCPs = []
+        # for i in range(taskCount):
+        #     self.taskCPs.append([])
+        # for i in range(taskCount-1):
+        #     next = self.taskCP[i]
+        #     self.taskCPs[i].append(next)
+        #     while next != taskCount-1:
+        #         next = self.taskCP[next]
+        #         self.taskCPs[i].append(next)
 
+    def calcDeadline(self, alpha):
+        self.DeadLine = (self.CPTime / VM.xxlarge_speed) + (self.CPTime - self.CPTime / VM.xxlarge_speed) * alpha
 
     # CPTime: end node -> start node
     def getCP(self, taskNo):
@@ -53,7 +63,7 @@ class Workflow:
 
     def getForwardCP(self, taskNo):
         if taskNo == self.taskCount - 1 : # end node
-            self.forwardCP[taskNo] = self.taskSize[taskNo]
+            self.forwardCP[taskNo] = self.taskTime[taskNo]
             return self.forwardCP[taskNo]
         if self.forwardCP[taskNo] != 0:
             return self.forwardCP[taskNo]
@@ -69,10 +79,10 @@ class Workflow:
                     cp = preCP
                     index = i
 
-        if cp != 0:
-            self.taskCP[taskNo] = index
+        # if cp != 0:
+        #     self.taskCP[taskNo] = index
 
-        self.forwardCP[taskNo] = self.taskSize[taskNo] + cp
+        self.forwardCP[taskNo] = self.taskTime[taskNo] + cp
         return self.forwardCP[taskNo]
 
 
@@ -115,9 +125,12 @@ class Workflow:
                     self.DAG[i,j] = 1
 
     def print(self):
+        print("DAG: ")
         print(self.DAG)
+        print("TaskSize: ")
         print(self.taskSize)
-
+        print("DeadLine: ", self.DeadLine)
+        print()
 
     def generateTaskSizeRandom(self):
         tasksize = []

@@ -7,15 +7,15 @@ Variable = autograd.Variable
 
 class DQN(nn.Module):
 
-    def __init__(self):
+    def __init__(self, hiddenSize = 500):
 
         super(DQN, self).__init__()
 
-        self.fc1 = nn.Linear(4, 1000)
+        self.fc1 = nn.Linear(6, hiddenSize)
         self.fc1.weight.data.normal_(0, 0.1)  # initialization
         # self.fc2 = nn.Linear(200, 200)
         # self.fc2.weight.data.normal_(0, 0.1)  # initialization
-        self.out = nn.Linear(1000, 3)
+        self.out = nn.Linear(hiddenSize, 5)
         self.out.weight.data.normal_(0, 0.1)  # initialization
 
         # self.main = nn.Sequential(

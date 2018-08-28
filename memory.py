@@ -9,7 +9,7 @@ class MemoryReplay(object):
 				 im_size=84,
 				 stack=4):     # stack ？
 
-		self.s = np.zeros((max_size, 4), dtype=np.float32) # states
+		self.s = np.zeros((max_size, 6), dtype=np.float32) # states
 		self.r = np.zeros(max_size, dtype=np.float32)                              # rewards
 		self.a = np.zeros(max_size, dtype=np.int32)                                # actions
 		#self.ss = np.zeros_like(self.s)
@@ -22,7 +22,7 @@ class MemoryReplay(object):
 
 
 	def put(self, sras):
-
+		# print(sras)
 		if self._cursor == (self.max_size-1) or self._cursor is None :
 			self._cursor = 0
 		else:
