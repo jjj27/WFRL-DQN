@@ -17,10 +17,18 @@ class RLagent_Scientific:
         self.epsilon = 0.3
         self.epsilon_end = 0.05
         self.epsilon_decay = 200
+
         self.update_step = 20
         self.memory_size = 2000
-        self.max_epoch = 1000
+        self.max_epoch = 500
         self.batch_size = 32
+
+
+        # self.max_epoch = 500
+        # self.batch_size = 1
+        # self.memory_size = 1
+        # self.update_step = 1
+
         self.hiddenSize = hiddenSize
         # self.save_path = '../Model/' + str(taskCount) + '-' + str(alpha) + perfix +'.pth'
         self.save_path = '../Model/' + perfix + '-' + str(taskCount) + '-' + str(alpha) +'.pth'
@@ -112,6 +120,7 @@ class RLagent_Scientific:
                     self.env.spanTimeProcess()
                 done, r = self.env.isDone()
                 if done:
+                    # print("action: ", actions)
                     ob = self.env.getObservation()
                     self.MP.put((ob, action, r, done))
                 score += r
@@ -174,10 +183,10 @@ class RLagent_Scientific:
         torch.save(self.dqn.state_dict(), self.save_path)
         print('Model has been saved.')
 
-        print()
-        print('QVALUE_STD')
-        print(QVALUE_STD)
+        #print()
+        #print('QVALUE_STD')
+        #print(QVALUE_STD)
 
-        print()
-        print('QVALUE_MEAN')
-        print(QVALUE_MEAN)
+        #print()
+        #print('QVALUE_MEAN')
+        #print(QVALUE_MEAN)

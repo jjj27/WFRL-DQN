@@ -99,20 +99,37 @@ class Pso():
 	def judge(self, x):
 		self.env.reset(newWorkflow=False)
 		#self.env.workflow.DeadLine += 1
+		costs = []
 		while True:
 			taskNos = self.env.getNewTasks()
 			if len(taskNos) == 0:
 				self.env.spanTimeProcess()
+				#curCost = self.env.timeProcess()
+				#costs.append(curCost)
 			else:
 				for taskNo in taskNos:
 					vmType = x[taskNo]
 					self.env.scheduleTask(taskNo, vmType)
-				self.env.timeProcess()
+				curCost = self.env.timeProcess()
+				#costs.append(curCost)
 			done, reward = self.env.isDone2()
 			if done:
+				# f = open("heatmap/PSO.txt", "a")
+				# s = ''
+				# # print('Costs: ', costs)
+				# for c in costs:
+				# 	s = s + str(c) + ' '
+				# print(s, file=f)
+				# f.close()
 				break
-
-		return reward, self.env.currentTime, self.env.totalCost
+		
+		types = []
+		for i in range(5):
+			types.append(np.count_nonzero(x == i))
+		# print(x)
+		# print(types)
+		
+		return reward, self.env.currentTime, self.env.totalCost, types
 
 	def run(self):
 		lb = []
@@ -128,8 +145,10 @@ class Pso():
 
 		for i in range(len(xopt)):
 			xopt[i] = int(xopt[i])
-		reward, time, cost = self.judge(xopt)
-		return reward, time, cost
+		reward, time, cost, types = self.judge(xopt)
+		#print("Actions: ", xopt)
+		
+		return reward, time, cost, types
 
 			# print()
 			# print('============ PLAN ============')
@@ -148,21 +167,53 @@ class Pso():
 
 
 if __name__ == '__main__':
-	with open('./ScientificWorkflow/Epig-0.4-ENVs', 'rb') as file:
+	algo = 'PSO'
+	wf = 'LIGO'
+	alpha = 0.8
+	dataset = './ScientificWorkflow/' + wf + '-' + str(alpha) + '-ENVs'
+	with open(dataset, 'rb') as file:
 		ENVs = pickle.load(file)
 	times = []
 	costs = []
 	fail = 0
+	VMtypes = []
+	
 	for i in range(len(ENVs)):
 		p = Pso(ENVs[i])
-		reward, time, cost = p.run()
+		reward, time, cost, types = p.run()
 		times.append(time)
 		costs.append(cost)
+		VMtypes.append(types)
 		if reward < 0:
 			fail += 1
 
 	print()
 	print("fail: ", fail)
-	print()
+	print('PSO_cost_mean: ', np.mean(costs))
+	
+	filename = "PlayOutput/" + wf + '-' + str(alpha) + '-' + algo + '.txt'
+	
+	f = open(filename, "w")
+	f.truncate()
+	f.close()
+	
+	f = open(filename, "a")
+	s = ''
+	
 	for i in range(len(times)):
-		print(times[i], costs[i])
+		print(times[i], costs[i], file=f)
+	f.close()
+
+	#print()
+	#for i in range(len(times)):
+	#	print(times[i], costs[i])
+	
+	
+	#AvgTypes = []
+	#for i in range(5):
+	#	curTs = 0
+	#	l = len(VMtypes)
+	#	for j in range(l):
+	#		curTs += VMtypes[j][i]
+	#	AvgTypes.append(curTs / l)
+	#print("AvgTypes: ", AvgTypes)

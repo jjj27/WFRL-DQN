@@ -4,6 +4,7 @@
 from xml.dom.minidom import parse
 import xml.dom.minidom
 import numpy as np
+import pickle
 
 
 class XMLtoDAG():
@@ -12,7 +13,7 @@ class XMLtoDAG():
 		self.xmlFile = file
 		self.taskCount = taskCount
 		self.DAG = np.zeros((self.taskCount, self.taskCount), dtype=int)
-
+	
 	def getDAG(self):
 
 		# 使用minidom解析器打开 XML 文档
@@ -35,9 +36,12 @@ class XMLtoDAG():
 
 
 if __name__ == '__main__':
-	dag = XMLtoDAG("CyberShake_30.xml", taskCount=30).getDAG()
+	dag = XMLtoDAG("LIGO_30.xml", taskCount=30).getDAG()
 	print(dag)
 	for i in range(30):
 		for j in range(30):
 			if dag[i,j] != 0:
 				print(i, ' -> ', j)
+	dbfile = open('LIGO-Origin', 'wb')
+	pickle.dump(dag, dbfile)
+	dbfile.close()

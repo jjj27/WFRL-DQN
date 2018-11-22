@@ -47,13 +47,16 @@ class Environment:
     def timeProcess(self):
         self.currentTime += 0.1
         toRemove = []
+        curCost = 0
         for i in range(len(self.resourcePool)):
             finishSig, cost = self.resourcePool[i].timeProcess(self)
+            curCost += cost
             self.totalCost += cost
             if finishSig:
                 self.setTaskFinished(self.resourcePool[i].taskNo)
                 toRemove.append(self.resourcePool[i])
         self.resourcePool = [e for e in self.resourcePool if e not in toRemove]
+        return curCost
 
     def spanTimeProcess(self):
         min = 99999999

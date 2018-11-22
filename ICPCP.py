@@ -174,21 +174,34 @@ class ICPCP:
 
 
         step = 0
+        costs = []
         while True:
             taskNos = self.env.getNewTasks()
             if len(taskNos) == 0:
-                self.env.spanTimeProcess()
-
+                # self.env.spanTimeProcess()
+                curCost = self.env.timeProcess()
+                costs.append(curCost)
             else:
                 for taskNo in taskNos:
                     vmType = self.SS[step]
                     step += 1
                     self.env.scheduleTask(taskNo, vmType)
-                self.env.spanTimeProcess()
+                # self.env.spanTimeProcess()
+
+                curCost = self.env.timeProcess()
+                costs.append(curCost)
             done, r = self.env.isDone2()
 
             if done:
+                # f = open("heatmap/ICPCP.txt", "a")
+                # s = ''
+                # for c in costs:
+                #    s = s + str(c) + ' '
+                # print(s, file=f)
+                # f.close()
+
                 print(self.env.currentTime, self.env.totalCost)
+
                 if r < 0:
                     issucc = 'fail'
                     fail = True
@@ -201,22 +214,61 @@ class ICPCP:
                 # print('Cost: ', self.env.totalCost)
                 # print( )
                 break
+        types = []
+        for i in range(5):
+            types.append(np.count_nonzero(self.SS == i))
+        
+        cost = self.env.totalCost
+        time = self.env.currentTime
         env = Environment(taskCount=self.taskCount)
         self.__init__(env)
-        return fail
+        return fail, time, cost, types
 
 
 if __name__ == '__main__':
-    with open('./ScientificWorkflow/Random-0.8-ENVs', 'rb') as file:
+    algo = 'ICPCP'
+    wf = 'LIGO'
+    alpha = 0.8
+    dataset = './ScientificWorkflow/' + wf + '-' + str(alpha) + '-ENVs'
+    
+    with open(dataset, 'rb') as file:
         ENVs = pickle.load(file)
     done = False
     failNo = 0
+    costs = []
+    times = []
+    VMtypes = []
     for i in range(len(ENVs)):
         env = ENVs[i]
         Pcp = ICPCP(env)
-        fail = Pcp.run()
+        fail, time, cost, types = Pcp.run()
+        VMtypes.append(types)
+        costs.append(cost)
+        times.append(time)
         if fail:
             failNo += 1
 
     print()
     print('failNo: ', failNo)
+    print('costMean: ', np.mean(costs))
+
+    filename = "PlayOutput/" + wf + '-' + str(alpha) + '-' + algo + '.txt'
+    f = open(filename, "w")
+    f.truncate()
+    f.close()
+
+    f = open(filename, "a")
+    s = ''
+
+    for i in range(len(times)):
+        print(times[i], costs[i], file=f)
+    f.close()
+
+    # AvgTypes = []
+    # for i in range(5):
+    #     curTs = 0
+    #     l = len(VMtypes)
+    #     for j in range(l):
+    #         curTs += VMtypes[j][i]
+    #     AvgTypes.append(curTs / l)
+    # print(AvgTypes)

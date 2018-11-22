@@ -17,10 +17,18 @@ class RLagent:
         self.epsilon = 0.3
         self.epsilon_end = 0.05
         self.epsilon_decay = 200
+        
+        # self.update_step = 20
+        # self.memory_size = 2000
+        # self.max_epoch = 1000
+        # self.batch_size = 1
+
         self.update_step = 20
         self.memory_size = 2000
-        self.max_epoch = 1000
-        self.batch_size = 32
+        self.max_epoch = 500
+        # self.batch_size = 32
+        self.batch_size = 1
+        
         self.hiddenSize = hiddenSize
 
         self.save_path = '../Model/' + perfix + '-' + str(taskCount) + '-' + str(alpha) +'.pth'
@@ -68,7 +76,7 @@ class RLagent:
                 self.MP.put((ob, action, r, done))
                 self.env.reset(newWorkflow=True)
 
-    def train(self):
+    def train(self, savePath='trainning_log'):
         self.memoryInit()
         print("================\n" 
         	  "Start training!!\n"
@@ -81,6 +89,7 @@ class RLagent:
         score = 0.
         avg_score = 0.
         best_score = 0.
+        avg_scores = []
 
         t = time.time()
 
@@ -150,10 +159,13 @@ class RLagent:
             QVALUE = []
 
             epoch += 1
-            avg_score = 0.9*avg_score + 0.1*score
+            # avg_score = 0.9*avg_score + 0.1*score
+            avg_score = 0.95 * avg_score + 0.05 * score
 
 
             print(avg_score)
+            avg_scores.append(avg_score)
+            # print(r)
             score = 0.0
             self.env.reset(newWorkflow=True)
 
@@ -167,10 +179,17 @@ class RLagent:
         torch.save(self.dqn.state_dict(), self.save_path)
         print('Model has been saved.')
 
-        print()
-        print('QVALUE_STD')
-        print(QVALUE_STD)
+        #print()
+        #print('QVALUE_STD')
+        #print(QVALUE_STD)
 
-        print()
-        print('QVALUE_MEAN')
-        print(QVALUE_MEAN)
+        #print()
+        #print('QVALUE_MEAN')
+        #print(QVALUE_MEAN)
+
+        # f = open(savePath, 'w')
+        # for i in range(len(avg_scores)):
+        #     avgRwd = avg_scores[i]
+        #     q = QVALUE_MEAN[i]
+        #     f.write(str(avgRwd) + ' ' + str(q) + '\n')
+        # f.close()

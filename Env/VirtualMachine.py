@@ -90,4 +90,4 @@ class VM:
         np.random.seed(t)
         s = np.random.normal(mu, sigma)
         return 1+s
-        #return 1
+        # return 1

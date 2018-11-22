@@ -11,14 +11,18 @@ taskCount = 30
 alpha = 0.8
 ENVs = []
 
-with open('./Cybershake-Origin', 'rb') as file:
+with open('./LIGO-Origin', 'rb') as file:
 	OriginWorkflow = pickle.load(file)
 
 for i in range(100):
+	# used for other
 	env = Environment(taskCount=taskCount, save=False, alpha=alpha, workflow=OriginWorkflow[i].workflow)
+	
+	# used for LIGO
+	# env = Environment(taskCount=taskCount, save=False, alpha=alpha, workflow=OriginWorkflow[i])
 	ENVs.append(env)
 
-dbfile = open('Cybershake-'+str(alpha)+'-ENVs', 'wb')
+dbfile = open('LIGO-'+str(alpha)+'-ENVs', 'wb')
 pickle.dump(ENVs, dbfile)
 dbfile.close()
 
